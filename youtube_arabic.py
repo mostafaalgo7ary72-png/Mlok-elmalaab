@@ -50,6 +50,7 @@ SHORTS_HEIGHT = 1920
 FPS = 24
 HISTORY_FILE = "history.json"
 SOURCE_INDEX_FILE = "source_index.json"
+FAILED_LINKS_FILE = "failed_links.json"
 CHANNEL_NAME_AR = "ملوك الملعب"
 CHANNEL_NAME_EN = "Kings of the Stadium"
 
@@ -291,6 +292,36 @@ def save_history(link, source_name):
     print(f"✅ تم حفظ الرابط في الهيستوري (إجمالي: {len(data)} رابط)")
 
 
+# ====================== دوال الروابط الفاشلة ======================
+def save_failed_link(link, source_name, reason):
+    """حفظ رابط فشل مع سبب الفشل في ملف منفصل عشان نراجعهم"""
+    data = []
+    if os.path.exists(FAILED_LINKS_FILE):
+        try:
+            with open(FAILED_LINKS_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if not isinstance(data, list):
+                    data = []
+        except Exception as e:
+            print(f"⚠️ خطأ في قراءة ملف الروابط الفاشلة: {e}")
+            data = []
+
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    new_entry = {
+        "link": link,
+        "source": source_name,
+        "reason": reason,
+        "failed_at": current_time
+    }
+
+    data.append(new_entry)
+
+    with open(FAILED_LINKS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+    print(f"📝 تم تسجيل رابط فاشل ({reason}): {link}")
+
+
 # ====================== دوال التنظيف ======================
 def clean_text_strict(text):
     """تنظيف النص من الحروف الإنجليزية والرموز الغريبة"""
@@ -452,6 +483,10 @@ def find_best_news():
                         data['source_name'] = source['name']
                         data['source_id'] = source['id']
                         return data
+                    else:
+                        save_failed_link(chosen_link, source['name'], "العنوان لا يحتوي على كلمات مفتاحية رياضية")
+                else:
+                    save_failed_link(chosen_link, source['name'], "فشل استخراج المحتوى / المحتوى قصير / لا توجد صورة")
         
         print(f"😔 لم يتم العثور على خبر مناسب في {source['name']}")
         
@@ -965,6 +1000,7 @@ async def main():
     print("\n📥 تحميل الصورة...")
     if not download_and_flip_image(article['image'], img_file):
         print("❌ فشل تحميل الصورة")
+        save_failed_link(article['url'], article['source_name'], "فشل تحميل صورة الخبر")
         return
     
     print("\n🎙️ توليد الصوت للفيديو الطويل...")
@@ -995,25 +1031,31 @@ async def main():
     
     if video_success:
         print("\n📤 رفع الفيديو الطويل...")
-        upload_to_youtube(
+        yt_ok = upload_to_youtube(
             video_file,
             ai['video_title'],
             ai['video_description'],
             ai['hashtags'],
             is_shorts=False
         )
-        upload_to_facebook(video_file, ai['facebook_post'], ai['hashtags'])
+        if not yt_ok:
+            save_failed_link(article['url'], article['source_name'], "فشل رفع الفيديو الطويل لليوتيوب")
+        fb_ok = upload_to_facebook(video_file, ai['facebook_post'], ai['hashtags'])
+        if not fb_ok:
+            save_failed_link(article['url'], article['source_name'], "فشل رفع الفيديو لفيسبوك")
     
     if shorts_success:
         print("\n📤 رفع الشورتس...")
         shorts_description = ai['shorts_script']
-        upload_to_youtube(
+        shorts_ok = upload_to_youtube(
             shorts_file,
             ai['shorts_title'],
             shorts_description,
             ai['hashtags'],
             is_shorts=True
         )
+        if not shorts_ok:
+            save_failed_link(article['url'], article['source_name'], "فشل رفع الشورتس لليوتيوب")
     
     print("\n💾 حفظ الرابط في الهيستوري...")
     save_history(article['url'], article['source_name'])
