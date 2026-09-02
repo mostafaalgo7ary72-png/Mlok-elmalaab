@@ -411,89 +411,97 @@ def get_article_content(url):
 
 # ====================== البحث عن الأخبار (بالترتيب) ======================
 def find_best_news():
-    """البحث عن أفضل خبر من المصدر الحالي بالترتيب"""
+    """البحث عن أفضل خبر بالترتيب - بتجرب كل المصادر في نفس التشغيلة قبل ما توقف"""
     history = load_history()
     
-    current_index, source = get_current_source()
+    total_sources = len(SOURCES)
+    attempts = 0
     
-    save_next_source_index(current_index)
-    
-    try:
-        print(f"🔎 جاري البحث في: {source['name']}...")
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-        resp = requests.get(source['url'], headers=headers, timeout=10)
-        soup = BeautifulSoup(resp.content, 'html.parser')
+    while attempts < total_sources:
+        attempts += 1
+        current_index, source = get_current_source()
+        save_next_source_index(current_index)
         
-        links = soup.find_all('a', href=True)
-        valid_links = []
-        
-        for a in links:
-            href = a['href']
-            if not href.startswith('http'):
-                base = "/".join(source['url'].split('/')[:3])
-                if href.startswith('/'):
-                    href = base + href
-                else:
-                    href = base + '/' + href
+        try:
+            print(f"🔎 جاري البحث في: {source['name']}...")
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+            resp = requests.get(source['url'], headers=headers, timeout=10)
+            soup = BeautifulSoup(resp.content, 'html.parser')
             
-            if href in history:
-                continue
+            links = soup.find_all('a', href=True)
+            valid_links = []
             
-            check_str = (href + " " + a.get_text()).lower()
-            
-            is_sports = False
-            for kw in STRICT_KEYWORDS:
-                if kw.lower() in check_str:
-                    is_sports = True
-                    break
-            
-            if not is_sports:
-                continue
-            
-            is_blacklisted = False
-            for bl in BLACKLIST_KEYWORDS:
-                if bl.lower() in check_str:
-                    is_blacklisted = True
-                    break
-            
-            if is_blacklisted:
-                continue
-
-            if len(a.get_text().strip()) > 15:
-                valid_links.append(href)
-        
-        print(f"📋 تم العثور على {len(valid_links)} رابط محتمل")
-        
-        if valid_links:
-            random.shuffle(valid_links)
-            for chosen_link in valid_links[:10]:
-                data = get_article_content(chosen_link)
-                
-                if data and len(data['text']) > 800 and data['image']:
-                    title_check = data['title'].lower()
-                    has_keyword = False
-                    for kw in STRICT_KEYWORDS:
-                        if kw.lower() in title_check:
-                            has_keyword = True
-                            break
-                    
-                    if has_keyword:
-                        print(f"🎯 تم العثور على خبر مناسب!")
-                        data['source_name'] = source['name']
-                        data['source_id'] = source['id']
-                        return data
+            for a in links:
+                href = a['href']
+                if not href.startswith('http'):
+                    base = "/".join(source['url'].split('/')[:3])
+                    if href.startswith('/'):
+                        href = base + href
                     else:
-                        save_failed_link(chosen_link, source['name'], "العنوان لا يحتوي على كلمات مفتاحية رياضية")
-                else:
-                    save_failed_link(chosen_link, source['name'], "فشل استخراج المحتوى / المحتوى قصير / لا توجد صورة")
+                        href = base + '/' + href
+                
+                if href in history:
+                    continue
+                
+                check_str = (href + " " + a.get_text()).lower()
+                
+                is_sports = False
+                for kw in STRICT_KEYWORDS:
+                    if kw.lower() in check_str:
+                        is_sports = True
+                        break
+                
+                if not is_sports:
+                    continue
+                
+                is_blacklisted = False
+                for bl in BLACKLIST_KEYWORDS:
+                    if bl.lower() in check_str:
+                        is_blacklisted = True
+                        break
+                
+                if is_blacklisted:
+                    continue
+
+                if len(a.get_text().strip()) > 15:
+                    valid_links.append(href)
+            
+            print(f"📋 تم العثور على {len(valid_links)} رابط محتمل")
+            
+            if valid_links:
+                random.shuffle(valid_links)
+                for chosen_link in valid_links[:10]:
+                    data = get_article_content(chosen_link)
+                    
+                    if data and len(data['text']) > 800 and data['image']:
+                        title_check = data['title'].lower()
+                        has_keyword = False
+                        for kw in STRICT_KEYWORDS:
+                            if kw.lower() in title_check:
+                                has_keyword = True
+                                break
+                        
+                        if has_keyword:
+                            print(f"🎯 تم العثور على خبر مناسب!")
+                            data['source_name'] = source['name']
+                            data['source_id'] = source['id']
+                            return data
+                        else:
+                            save_failed_link(chosen_link, source['name'], "العنوان لا يحتوي على كلمات مفتاحية رياضية")
+                    else:
+                        save_failed_link(chosen_link, source['name'], "فشل استخراج المحتوى / المحتوى قصير / لا توجد صورة")
+            
+            print(f"😔 لم يتم العثور على خبر مناسب في {source['name']}")
+            
+        except Exception as e:
+            print(f"❌ خطأ في المصدر {source['name']}: {e}")
         
-        print(f"😔 لم يتم العثور على خبر مناسب في {source['name']}")
-        
-    except Exception as e:
-        print(f"❌ خطأ في المصدر {source['name']}: {e}")
+        if attempts < total_sources:
+            print(f"➡️ جاري الانتقال للمصدر التالي في نفس التشغيلة...")
     
+    print(f"😴 تم تجربة كل المصادر ({total_sources}) في هذه التشغيلة ولم يتم العثور على خبر مناسب")
     return None
 
 
