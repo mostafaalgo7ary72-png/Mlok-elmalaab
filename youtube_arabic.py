@@ -54,13 +54,14 @@ FAILED_LINKS_FILE = "failed_links.json"
 CHANNEL_NAME_AR = "ملوك الملعب"
 CHANNEL_NAME_EN = "Kings of the Stadium"
 
-# ====================== موديلات Groq المدعومة فقط (محدث مارس 2025) ======================
+# ====================== موديلات Groq المدعومة فقط (محدث سبتمبر 2026) ======================
+# llama-3.3-70b-versatile و llama-3.1-8b-instant بقوا Enterprise فقط ومش متاحين لحسابات المطورين العادية
+# mixtral-8x7b-32768 و gemma2-9b-it و llama3-8b-8192 اتلغوا (decommissioned)
 GROQ_MODELS = [
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
-    "llama3-8b-8192",
-    "mixtral-8x7b-32768",
-    "gemma2-9b-it"
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "qwen/qwen3.6-27b",
+    "openai/gpt-oss-safeguard-20b"
 ]
 
 # ====================== المصادر مرقمة بالترتيب ======================
