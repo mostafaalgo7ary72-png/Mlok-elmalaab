@@ -510,23 +510,29 @@ def generate_ai_content(article):
     """توليد المحتوى باستخدام الذكاء الاصطناعي"""
     client = Groq(api_key=GROQ_API_KEY)
     
+    # تقصير نص المقال عشان مايتجاوزش حد التوكنز بالدقيقة (TPM) في الخطة المجانية
+    MAX_ARTICLE_CHARS = 3000
+    article_text = article['text']
+    if len(article_text) > MAX_ARTICLE_CHARS:
+        article_text = article_text[:MAX_ARTICLE_CHARS]
+    
     prompt = f"""
 أنت محلل رياضي محترف ومعلق كروي خبير.
 سأعطيك خبر رياضي، مطلوب منك إنشاء محتوى احترافي باللغة العربية الفصحى.
 
 النص الأصلي:
 العنوان: {article['title']}
-المحتوى: {article['text']}
+المحتوى: {article_text}
 
 التعليمات الإلزامية الصارمة:
 1. لا تخترع أي معلومات غير موجودة في النص الأصلي إطلاقاً
-2. استخدم كل التفاصيل الموجودة في النص دون تلخيص
+2. استخدم التفاصيل الموجودة في النص دون حشو
 3. اقرأ الخبر كاملاً وأعد صياغته بأسلوب احترافي
 4. اكتب بأسلوب سردي تحليلي غني بالمفردات العربية الفصحى
-5. النص يجب أن يكون طويلاً جداً (1200-1500 كلمة) لتغطية 5-7 دقائق
+5. النص يجب أن يكون متوسط الطول (700-900 كلمة) لتغطية 3-4 دقائق
 6. البنية المطلوبة:
    - Hook: جملة افتتاحية قوية جداً تجذب المشاهد فوراً
-   - Body: شرح مفصل للخبر مع تحليل عميق وتفاصيل كاملة
+   - Body: شرح مفصل للخبر مع تحليل ودقة
    - CTA: دعوة للاشتراك والتفاعل في النهاية
 
 7. العنوان يجب أن يكون:
@@ -535,13 +541,13 @@ def generate_ai_content(article):
    - جذاب ومثير للفضول
 
 8. الوصف يجب أن يكون:
-   - 200 كلمة تقريباً
+   - 120 كلمة تقريباً
    - يبدأ بـ Hook قوي
-   - يحتوي Body مفصل
+   - يحتوي Body مختصر
    - ينتهي بـ CTA
 
 9. الهاشتاقات:
-   - 20 هاشتاق بالضبط
+   - 15 هاشتاق بالضبط
    - كلها مرتبطة بمحتوى الفيديو والخبر
    - باللغة العربية
 
@@ -554,11 +560,11 @@ def generate_ai_content(article):
 المطلوب بصيغة JSON فقط:
 {{
     "video_title": "عنوان جذاب للفيديو الطويل (50-60 حرف) يحتوي كلمات مفتاحية قوية",
-    "video_script": "النص الكامل الطويل للفيديو (Hook + Body + CTA) - 1200-1500 كلمة",
-    "video_description": "وصف احترافي 200 كلمة (Hook + Body + CTA)",
+    "video_script": "النص الكامل للفيديو (Hook + Body + CTA) - 700-900 كلمة",
+    "video_description": "وصف احترافي 120 كلمة (Hook + Body + CTA)",
     "shorts_title": "عنوان مختصر وجذاب للشورتس (40 حرف)",
     "shorts_script": "نص مختصر للشورتس (Hook + Body + CTA) - 30-45 ثانية فقط بدون هاشتاقات",
-    "hashtags": ["#هاشتاق1", "#هاشتاق2", "... 20 هاشتاق مرتبط بالمحتوى"],
+    "hashtags": ["#هاشتاق1", "#هاشتاق2", "... 15 هاشتاق مرتبط بالمحتوى"],
     "facebook_post": "منشور فيسبوك جذاب مع إيموجي"
 }}
 """
@@ -580,7 +586,7 @@ def generate_ai_content(article):
                     }
                 ],
                 temperature=0.7,
-                max_tokens=8000,
+                max_tokens=4000,
                 response_format={"type": "json_object"}
             )
             
@@ -624,14 +630,14 @@ def generate_ai_content(article):
                 "#عاجل"
             ]
             
-            while len(tags) < 20:
+            while len(tags) < 15:
                 for d in defaults:
                     if d not in tags:
                         tags.append(d)
-                    if len(tags) >= 20:
+                    if len(tags) >= 15:
                         break
             
-            content['hashtags'] = tags[:20]
+            content['hashtags'] = tags[:15]
             
             if len(content['video_title']) > 60:
                 content['video_title'] = content['video_title'][:57] + "..."
