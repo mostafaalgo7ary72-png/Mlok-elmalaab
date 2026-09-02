@@ -365,7 +365,7 @@ def get_article_content(url):
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
-        response = requests.get(url, headers=headers, timeout=15)
+        response = requests.get(url, headers=headers, timeout=8)
         soup = BeautifulSoup(response.content, 'html.parser')
         
         title = ""
@@ -410,14 +410,22 @@ def get_article_content(url):
 
 
 # ====================== البحث عن الأخبار (بالترتيب) ======================
+MAX_SEARCH_SECONDS = 240  # 4 دقائق كحد أقصى لمرحلة البحث كلها عبر كل المصادر
+
 def find_best_news():
-    """البحث عن أفضل خبر بالترتيب - بتجرب كل المصادر في نفس التشغيلة قبل ما توقف"""
+    """البحث عن أفضل خبر بالترتيب - بتجرب كل المصادر في نفس التشغيلة قبل ما توقف، مع حد زمني أقصى"""
     history = load_history()
     
     total_sources = len(SOURCES)
     attempts = 0
+    start_time = time.time()
     
     while attempts < total_sources:
+        elapsed = time.time() - start_time
+        if elapsed > MAX_SEARCH_SECONDS:
+            print(f"⏱️ تم تجاوز الحد الأقصى لوقت البحث ({MAX_SEARCH_SECONDS}s) - إيقاف البحث والاكتفاء بالمحاولات اللي تمت")
+            break
+        
         attempts += 1
         current_index, source = get_current_source()
         save_next_source_index(current_index)
@@ -427,7 +435,7 @@ def find_best_news():
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             }
-            resp = requests.get(source['url'], headers=headers, timeout=10)
+            resp = requests.get(source['url'], headers=headers, timeout=8)
             soup = BeautifulSoup(resp.content, 'html.parser')
             
             links = soup.find_all('a', href=True)
@@ -472,7 +480,10 @@ def find_best_news():
             
             if valid_links:
                 random.shuffle(valid_links)
-                for chosen_link in valid_links[:10]:
+                for chosen_link in valid_links[:5]:
+                    if time.time() - start_time > MAX_SEARCH_SECONDS:
+                        print(f"⏱️ تم تجاوز الحد الأقصى لوقت البحث أثناء تجربة الروابط - إيقاف")
+                        break
                     data = get_article_content(chosen_link)
                     
                     if data and len(data['text']) > 800 and data['image']:
