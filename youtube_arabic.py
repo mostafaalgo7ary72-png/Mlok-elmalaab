@@ -840,7 +840,9 @@ def create_zooming_video(image_path, audio_path, output_path, width, height, is_
 def get_youtube_service():
     """الحصول على خدمة يوتيوب"""
     try:
-        token_data = base64.b64decode(YOUTUBE_TOKEN_B64)
+        raw_token = ''.join((YOUTUBE_TOKEN_B64 or '').split()).strip('"\'')
+        raw_token += '=' * (-len(raw_token) % 4)
+        token_data = base64.b64decode(raw_token)
         
         try:
             creds = pickle.loads(token_data)
